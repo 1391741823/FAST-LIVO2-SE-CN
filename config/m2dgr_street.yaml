@@ -1,0 +1,112 @@
+common:
+    lid_topic:  "/velodyne_points"
+    imu_topic:  "/handsfree/imu"
+    img_topic:  "/camera/color/image_raw"
+
+    img_en: 1
+    lidar_en: 1
+    ros_driver_bug_fix: true
+
+extrin_calib:
+  extrinsic_T: [0.27255, -0.00053, 0.17954]
+  extrinsic_R: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+  Rcl: [0.00000, -1.00000, 0.00000, 
+        0.00000, 0.00000, -1.00000, 
+        1.00000, 0.00000, 0.00000] 
+  Pcl: [0.16123, -0.16711, -0.24221]
+
+time_offest:
+  imu_time_offest:  0.0
+  img_time_offest: 0.0
+  exposure_time_init: 0.0
+
+  #street时间补偿
+
+preprocess:
+  point_filter_num: 1
+  filter_size_surf: 0.25
+  lidar_type: 2 # 1:Livox Avia LiDAR  2:VELO16  3:OUST64  4:XT32 
+  scan_line: 32 # 16  64  32
+  blind: 1 #5         blind x m disable
+  
+vio:
+  max_iterations: 5
+  outlier_threshold: 1000 # 78 100 156 #100 200 500 700 infinite
+  img_point_cov: 1000 # 100 1000 
+  patch_size: 8
+  patch_pyrimid_level: 3
+  normal_en: true
+  raycast_en: false
+  inverse_composition_en: false
+  exposure_estimate_en: true
+  inv_expo_cov: 0.1
+
+imu:
+  imu_en: true
+  imu_int_frame: 30
+  acc_cov: 0.1 # 0.5 2.0
+  gyr_cov: 0.1 # 0.3
+  b_acc_cov: 0.0001 # 0.1
+  b_gyr_cov: 0.0001 # 0.1
+
+  #acc_cov_scale: 100
+  #gyr_cov_scale: 10000
+
+lio:
+  max_iterations: 10
+  dept_err: 0.02
+  beam_err: 0.05
+  min_eigen_value: 0.001
+  voxel_size: 1.0 # 1.0
+  max_layer: 2
+  max_points_num: 50
+  layer_init_num: [5, 5, 5, 5, 5]
+
+local_map:
+  map_sliding_en: false
+  half_map_size: 100 #100
+  sliding_thresh: 8 #8
+
+uav:
+  imu_rate_odom: false
+  gravity_align_en: false
+
+publish:
+  dense_map_en: true
+  pub_effect_point_en: false 
+  pub_plane_en: false
+  pub_scan_num: 1
+  blind_rgb_points: 0.0
+
+evo:
+  #seq_name: "HKairport03"
+  seq_name: "M2DGR_lift04"
+  pose_output_en: true
+
+pcd_save:
+  pcd_save_en: false
+  colmap_output_en: false # need to set interval = -1
+  filter_size_pcd: 0.15
+  interval: -1
+#feature_extract_enable : 0
+#point_filter_num : 2
+#max_iteration : 10
+#dense_map_enable : 1
+
+#img_enable : 1
+#lidar_enable : 1
+#outlier_threshold : 300 # 78 100 156
+
+#img_point_cov : 100 # 1000
+
+
+
+# filter_size_surf : 0.15
+# filter_size_map : 0.3
+# cube_side_length : 20
+# grid_size : 40
+# patch_size : 8
+# ncc_en: false
+# ncc_thre: 0
+# laser_point_cov : 0.001 # 0.001
+# delta_time: 0.0

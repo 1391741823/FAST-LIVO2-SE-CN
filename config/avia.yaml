@@ -1,0 +1,91 @@
+common:
+  img_topic: "/left_camera/image"
+  lid_topic: "/livox/lidar"
+  imu_topic: "/livox/imu"
+  img_en: 1
+  lidar_en: 1
+  ros_driver_bug_fix: false
+
+extrin_calib:
+  extrinsic_T: [0.04165, 0.02326, -0.0284]
+  extrinsic_R: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+  Rcl: [0.00610193,-0.999863,-0.0154172,
+        -0.00615449,0.0153796,-0.999863,
+        0.999962,0.00619598,-0.0060598] 
+  Pcl: [0.0194384, 0.104689,-0.0251952]
+
+time_offset:
+  imu_time_offset: 0.0  #imu时间补偿
+  img_time_offset: 0.1  #相机时间补偿
+  exposure_time_init: 0.0 #初始曝光时间
+
+preprocess: #预处理模块
+  point_filter_num: 1 #点云滤波次数
+  filter_size_surf: 0.1 #表面滤波器尺寸
+  lidar_type: 1 # Livox Avia LiDAR
+  scan_line: 6  #扫描线数量
+  blind: 0.8  #lidar盲区范围
+
+vio:
+  max_iterations: 5 #最大迭代次数
+  outlier_threshold: 1000 # 78 100 156 #100 200 500 700 infinite  离群点阈值
+  img_point_cov: 100 # 100 1000 图像特征点协方差
+  patch_size: 8 #视觉特征点大小
+  patch_pyrimid_level: 4  #视觉金字塔层数
+  normal_en: true #是否启用法向量投射
+  raycast_en: false #是否启用光线投射
+  inverse_composition_en: false #是否启用逆组合方法
+  exposure_estimate_en: true  #是否启用曝光时间估计
+  inv_expo_cov: 0.1 #曝光时间估计协方差
+
+imu:
+  imu_en: true  #
+  imu_int_frame: 30 #插值帧数
+  acc_cov: 0.5 # 0.2 加速度噪声协方差
+  gyr_cov: 0.3 # 0.5陀螺仪噪声协方差
+  b_acc_cov: 0.0001 # 0.1 加速度偏差噪声协方差
+  b_gyr_cov: 0.0001 # 0.1 陀螺仪偏差噪声协方差
+
+lio:
+  max_iterations: 5 #最大迭代次数
+  dept_err: 0.02  #深度误差
+  beam_err: 0.05  #光束误差
+  min_eigen_value: 0.0025 # 0.005 最小特征值
+  voxel_size: 0.5 #体素滤波尺寸
+  max_layer: 2  #最大层数
+  max_points_num: 50  #最大点数
+  layer_init_num: [5, 5, 5, 5, 5] #各层初始化点数
+
+local_map:  
+  map_sliding_en: false #地图滑窗使能
+  half_map_size: 100  #地图窗口半径
+  sliding_thresh: 8 #地图滑动阈值
+
+uav:
+  imu_rate_odom: false  #是否根据imu频率发布里程计数据
+  gravity_align_en: false #是否启用重力对齐
+
+publish:
+  dense_map_en: true  #是否发布稠密点云地图
+  pub_effect_point_en: false  #是否发布有效点云
+  pub_plane_en: false #是否发布平面点云
+  pub_scan_num: 1 #需要发布的扫描次数
+  blind_rgb_points: 0.0 #rgb盲区点云
+
+evo:
+  seq_name: "CBD_Building_01"   #轨迹数据集名称
+  pose_output_en: false #是否输出位姿
+
+pcd_save:
+  pcd_save_en: false  #是否保存点云
+  colmap_output_en: false # need to set interval = -1是否输出至
+  filter_size_pcd: 0.15 #点云滤波尺寸
+  interval: -1  #点云保存间距
+
+
+
+
+
+
+
+
