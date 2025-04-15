@@ -68,6 +68,7 @@ void loadVoxelConfig(ros::NodeHandle &nh, VoxelMapConfig &voxel_config)//从 ROS
 }
 /*
 初始化体素平面
+根据输入的点云数据初始化一个平面。它通过计算点云的协方差矩阵、中心点和法向量，判断这些点是否构成一个平面，并初始化平面相关的属性
 初始输入的参数是平面点 和指针平面
 */
 void VoxelOctoTree::init_plane(const std::vector<pointWithVar> &points, VoxelPlane *plane)//根据输入的点云数据初始化一个平面
@@ -81,8 +82,8 @@ void VoxelOctoTree::init_plane(const std::vector<pointWithVar> &points, VoxelPla
   plane->radius_ = 0;
   for (auto pv : points)//输入每个点 协方差矩阵计算
   {
-    plane->covariance_ += pv.point_w * pv.point_w.transpose();
-    plane->center_ += pv.point_w;
+    plane->covariance_ += pv.point_w * pv.point_w.transpose();//协方差
+    plane->center_ += pv.point_w;//中心点
   }
   plane->center_ = plane->center_ / plane->points_size_;
   plane->covariance_ = plane->covariance_ / plane->points_size_ - plane->center_ * plane->center_.transpose();//遍历所有点，计算中心点和协方差矩阵
@@ -93,6 +94,7 @@ void VoxelOctoTree::init_plane(const std::vector<pointWithVar> &points, VoxelPla
 
   Eigen::Vector3d evalsReal;
   evalsReal = evals.real();//特征值排序逻辑
+  //对特征值进行排序，找到最小、中间和最大的特征值及其对应的特征向量
   Eigen::Matrix3f::Index evalsMin, evalsMax;
   evalsReal.rowwise().sum().minCoeff(&evalsMin);
   evalsReal.rowwise().sum().maxCoeff(&evalsMax);
@@ -104,6 +106,7 @@ void VoxelOctoTree::init_plane(const std::vector<pointWithVar> &points, VoxelPla
   J_Q << 1.0 / plane->points_size_, 0, 0, 0, 1.0 / plane->points_size_, 0, 0, 0, 1.0 / plane->points_size_;
   // && evalsReal(evalsMid) > 0.05
   //&& evalsReal(evalsMid) > 0.01
+  //判断是否为平面
   if (evalsReal(evalsMin) < planer_threshold_)//如果最小特征值小于阈值 planer_threshold_，则认为这些点构成一个平面 标记为平面
   {
     for (int i = 0; i < points.size(); i++)
@@ -151,11 +154,15 @@ void VoxelOctoTree::init_plane(const std::vector<pointWithVar> &points, VoxelPla
   else
   {
     plane->is_update_ = true;
-    plane->is_plane_ = false;
+    plane->is_plane_ = false;//不是平面
   }
 }
-
-void VoxelOctoTree::init_octo_tree()//初始化八叉树节点，判断当前节点是否构成平面，并根据结果决定是否继续分割
+/*
+初始化八叉树节点，判断当前节点是否构成平面，并根据结果决定是否继续分割
+八叉树构建和管理的核心部分，用于处理点云数据并将其组织成层次化的八叉树结构
+无输入
+*/
+void VoxelOctoTree::init_octo_tree()//
 {
   if (temp_points_.size() > points_size_threshold_)//如果当前节点的点数 temp_points_ 超过阈值 points_size_threshold_，则进行平面初始化  检查当前八叉树节点内的点云数量是否超过预设阈值
   {
@@ -173,7 +180,7 @@ void VoxelOctoTree::init_octo_tree()//初始化八叉树节点，判断当前节
     }
     else//如果当前节点不构成平面，设置节点状态为 1，并调用 cut_octo_tree 函数继续分割
     {
-      octo_state_ = 1;
+      octo_state_ = 1;//设置节点状态（是否分割）
       cut_octo_tree();//使用下一个构建的函数
     }
     init_octo_ = true;
@@ -181,7 +188,8 @@ void VoxelOctoTree::init_octo_tree()//初始化八叉树节点，判断当前节
   }
 }
 /*
-
+对当前八叉树节点进行分割，将点云数据分配到子节点中，并递归地对每个子节点进行平面检测和进一步分割。
+它是八叉树构建和管理的核心部分，用于处理点云数据并将其组织成层次化的八叉树结构。
 */
 void VoxelOctoTree::cut_octo_tree()//在上一个函数中引用的 当前节点不构成平面时 使用此函数
 {
@@ -247,9 +255,11 @@ void VoxelOctoTree::cut_octo_tree()//在上一个函数中引用的 当前节点
   }
 }
 /*
-更新八叉树结合上面两个函数
+更新八叉树  结合上面两个函数
+主要功能是更新八叉树节点，将新点插入到合适的节点中，并根据条件重新初始化或分割节点
+const pointWithVar &pv: 输入的新点，包含点的三维坐标和协方差等信息
 */
-void VoxelOctoTree::UpdateOctoTree(const pointWithVar &pv)//更新八叉树节点，将新点插入到合适的节点中，并根据条件重新初始化或分割节点
+void VoxelOctoTree::UpdateOctoTree(const pointWithVar &pv)
 {
   if (!init_octo_)//如果节点未初始化，则将新点加入 temp_points_，并检查是否需要初始化
   {
@@ -279,7 +289,7 @@ void VoxelOctoTree::UpdateOctoTree(const pointWithVar &pv)//更新八叉树节�
       }
     }
     else//如果当前节点不是平面且未达到最大层数，则将新点分配到子节点
-    {
+    {//处理非平面节点
       if (layer_ < max_layer_)//最大层数
       {
         int xyz[3] = {0, 0, 0};//找中心层数
@@ -323,7 +333,8 @@ void VoxelOctoTree::UpdateOctoTree(const pointWithVar &pv)//更新八叉树节�
   }
 }
 /*
-
+寻找相应点
+在vio中调用了，目的是寻找中心点
 */
 VoxelOctoTree *VoxelOctoTree::find_correspond(Eigen::Vector3d pw)//根据输入点 pw 的坐标，在八叉树中找到对应的节点
 {
@@ -340,7 +351,7 @@ VoxelOctoTree *VoxelOctoTree::find_correspond(Eigen::Vector3d pw)//根据输入�
   return (leaves_[leafnum] != nullptr) ? leaves_[leafnum]->find_correspond(pw) : this;//如果子节点存在，则递归调用 find_correspond；否则返回当前节点
 }
 /*
-
+将点插入到八叉树中（没用到）
 */
 VoxelOctoTree *VoxelOctoTree::Insert(const pointWithVar &pv)//将点 pv 插入到八叉树中，并返回插入的节
 {
@@ -350,7 +361,7 @@ VoxelOctoTree *VoxelOctoTree::Insert(const pointWithVar &pv)//将点 pv 插入�
     temp_points_.push_back(pv);
     return this;
   }
-//如果当前节点不是平面节点且未达到最大层数，则根据点 pv 的坐标与当前节点中心点 voxel_center_ 的比较，确定点所在的子节点索引 leafnum
+  //如果当前节点不是平面节点且未达到最大层数，则根据点 pv 的坐标与当前节点中心点 voxel_center_ 的比较，确定点所在的子节点索引 leafnum
   if (init_octo_ && (!plane_ptr_->is_plane_) && (layer_ < max_layer_))
   {
     int xyz[3] = {0, 0, 0};
@@ -372,13 +383,10 @@ VoxelOctoTree *VoxelOctoTree::Insert(const pointWithVar &pv)//将点 pv 插入�
   }
   return nullptr;//如果以上条件均不满足，则返回 nullptr
 }
-
-//这两个函数共同实现了八叉树的动态更新和查询功能，适用于点云数据的存储和管理
-
 /*
+这两个函数共同实现了八叉树的动态更新和查询功能，适用于点云数据的存储和管理
 基于扩展卡尔曼滤波（EKF）的状态估计过程包括了很多部分
 VoxelMapManager类的相关函数
-
 */
 void VoxelMapManager::StateEstimation(StatesGroup &state_propagat)
 {
@@ -584,9 +592,11 @@ I_STATE：单位矩阵
   // cout << "[ Mapping ] ekf_time: " << ekf_time << "s, build_residual_time: " << build_residual_time << "s" << endl;
   // cout << "[ Mapping ] ave_ekf_time: " << ave_ekf_time << "s, ave_build_residual_time: " << ave_build_residual_time << "s" << endl;
 }
-
+/*
+将 LiDAR 点云从机体坐标系转换到世界坐标系
+*/
 void VoxelMapManager::TransformLidar(const Eigen::Matrix3d rot, const Eigen::Vector3d t, const PointCloudXYZI::Ptr &input_cloud,
-                                     pcl::PointCloud<pcl::PointXYZI>::Ptr &trans_cloud)//将 LiDAR 点云从机体坐标系转换到世界坐标系
+                                     pcl::PointCloud<pcl::PointXYZI>::Ptr &trans_cloud)
 {
   pcl::PointCloud<pcl::PointXYZI>().swap(*trans_cloud);
   trans_cloud->reserve(input_cloud->size());//input_cloud：输入点云（机体坐标系） 输出点云（世界坐标系）
@@ -603,34 +613,42 @@ void VoxelMapManager::TransformLidar(const Eigen::Matrix3d rot, const Eigen::Vec
     trans_cloud->points.push_back(pi);//将变换后的点存入 trans_cloud
   }
 }
-
-void VoxelMapManager::BuildVoxelMap()//构建体素地图
-{
-  float voxel_size = config_setting_.max_voxel_size_;//
-  float planer_threshold = config_setting_.planner_threshold_;//
-  int max_layer = config_setting_.max_layer_;//
-  int max_points_num = config_setting_.max_points_num_;//
-  std::vector<int> layer_init_num = config_setting_.layer_init_num_;//从配置中读取体素大小、平面阈值、最大层数、最大点数等参数
-
+/*
+//构建体素地图
+根据输入的点云数据构建体素地图，并初始化每个体素的八叉树结构。
+*/
+void VoxelMapManager::BuildVoxelMap()
+{//读取配置参数
+  float voxel_size = config_setting_.max_voxel_size_;//体素的大小
+  float planer_threshold = config_setting_.planner_threshold_;//平面判断的阈值
+  int max_layer = config_setting_.max_layer_;//八叉树的最大层数
+  int max_points_num = config_setting_.max_points_num_;//每个体素的最大点数
+  std::vector<int> layer_init_num = config_setting_.layer_init_num_;//每层的初始化点数
+  //准备输入点云数据
   std::vector<pointWithVar> input_points;
 
   for (size_t i = 0; i < feats_down_world_->size(); i++)//对每个点计算其协方差矩阵，并将其存入 input_points
   {
     pointWithVar pv;
+    //将点的三维坐标存储到 pointWithVar 类型中
     pv.point_w << feats_down_world_->points[i].x, feats_down_world_->points[i].y, feats_down_world_->points[i].z;
     V3D point_this(feats_down_body_->points[i].x, feats_down_body_->points[i].y, feats_down_body_->points[i].z);
     M3D var;
+    //调用 calcBodyCov 函数计算点的协方差矩阵
     calcBodyCov(point_this, config_setting_.dept_err_, config_setting_.beam_err_, var);
     M3D point_crossmat;
     point_crossmat << SKEW_SYM_MATRX(point_this);
     var = (state_.rot_end * extR_) * var * (state_.rot_end * extR_).transpose() +
           (-point_crossmat) * state_.cov.block<3, 3>(0, 0) * (-point_crossmat).transpose() + state_.cov.block<3, 3>(3, 3);
     pv.var = var;
+    //将点的协方差矩阵和其他信息存储到 input_points 中
     input_points.push_back(pv);
   }
 
   uint plsize = input_points.size();
-  for (uint i = 0; i < plsize; i++)//将每个点分配到对应的体素中
+
+  //将点分配到体素中
+  for (uint i = 0; i < plsize; i++)
   {
     const pointWithVar p_v = input_points[i];
     float loc_xyz[3];
@@ -659,6 +677,7 @@ void VoxelMapManager::BuildVoxelMap()//构建体素地图
       voxel_map_[position]->layer_init_num_ = layer_init_num;
     }
   }
+  // 初始化八叉树
   for (auto iter = voxel_map_.begin(); iter != voxel_map_.end(); ++iter)
   {
     iter->second->init_octo_tree();//对每个体素调用 init_octo_tree，初始化八叉树结构
@@ -682,8 +701,11 @@ V3F VoxelMapManager::RGBFromVoxel(const V3D &input_point)//根据体素位置生
   // cout<<"RGB: "<<RGB.transpose()<<endl;
   return RGB;
 }
-
-void VoxelMapManager::UpdateVoxelMap(const std::vector<pointWithVar> &input_points)//更新体素地图
+/*
+更新体素地图
+在LIO中计算出了雷达到世界坐标系的协方差 并带入了计算
+*/
+void VoxelMapManager::UpdateVoxelMap(const std::vector<pointWithVar> &input_points)
 {
   float voxel_size = config_setting_.max_voxel_size_;
   float planer_threshold = config_setting_.planner_threshold_;
@@ -765,7 +787,7 @@ void VoxelMapManager::BuildResidualListOMP(std::vector<pointWithVar> &pv_list, s
       build_single_residual(pv, current_octo, 0, is_sucess, prob, single_ptpl);//调用 build_single_residual 计算点到平面的残差
       if (!is_sucess)//如果计算失败，尝试在 邻近体素 重新计算残差
       {
-        VOXEL_LOCATION near_position = position;
+        VOXEL_LOCATION near_position = position;//标记体素位置
         if (loc_xyz[0] > (current_octo->voxel_center_[0] + current_octo->quater_length_)) { near_position.x = near_position.x + 1; }
         else if (loc_xyz[0] < (current_octo->voxel_center_[0] - current_octo->quater_length_)) { near_position.x = near_position.x - 1; }
         if (loc_xyz[1] > (current_octo->voxel_center_[1] + current_octo->quater_length_)) { near_position.y = near_position.y + 1; }
